@@ -7,8 +7,8 @@
 // Push buttons
 #define LOCK        2
 #define UNLOCK      3
-#define SENSITIVITY 4
-#define SOUND       5
+#define SENSITIVITY A6 // 4
+#define SOUND       A7 // 5
 
 #define LED         6
 
@@ -28,10 +28,10 @@ volatile bool SOUND_FLAG = false;
 //Constants
 const char secret[30] = "77da4ba6-fdf2-11e7-8be5-0ed5ff";
 const uint64_t pipe = 0xE8E8F0F0E1LL;
-const uint8_t lock_msg = '0';
-const uint8_t unlock_msg = '1';
-const uint8_t sensitivity_msg = '2'; 
-const uint8_t sound_msg = '3';
+const uint8_t lock_code = '0';
+const uint8_t unlock_code = '1';
+const uint8_t sensitivity_code = '2'; 
+const uint8_t sound_code = '3';
 
 RF24 radio(CE, CSN);
 
@@ -47,50 +47,46 @@ void setup(void) {
 }
     
 void loop(void) {
-    char msg[PAYLOAD_SIZE];
-    memcpy(msg, secret, sizeof(secret)); 
-
     if(LOCK_FLAG){
-        msg[30] = lock_msg;
-        radio.write(msg, sizeof(msg)); 
-        while(!digitalRead(LOCK)){
-            radio.write(msg, sizeof(msg)); 
-            delay(TRANSMIT_DELAY);
-        }  
-        LOCK_FLAG = false; 
+        processKeyPress(LOCK, lock_code); 
+        LOCK_FLAG = false;
     }
 
     if(UNLOCK_FLAG){
-        msg[30] = unlock_msg;
-        radio.write(msg, sizeof(msg));
-        while(!digitalRead(LOCK)){
-            radio.write(msg, sizeof(msg)); 
-            delay(TRANSMIT_DELAY);    
-        }
+        processKeyPress(UNLOCK, unlock_code);
         UNLOCK_FLAG = false;
     }
 
     if(SENSITIVITY_FLAG){
-        msg[30] = sensitivity_msg;
-        radio.write(msg, sizeof(msg));
-        while(!digitalRead(LOCK)){
-            radio.write(msg, sizeof(msg)); 
-            delay(TRANSMIT_DELAY);    
-        }
+        processKeyPress(SENSITIVITY, sensitivity_code);
         SENSITIVITY_FLAG = false;
     }
 
     if(SOUND_FLAG){
-        msg[30] = sound_msg;
-        radio.write(msg, sizeof(msg));
-        while(!digitalRead(LOCK)){
-            radio.write(msg, sizeof(msg)); 
-            delay(TRANSMIT_DELAY);   
-        }
+        processKeyPress(SOUND, sound_code);
         SOUND_FLAG = false;
     }
 
     delay(10);
+}
+
+void processKeyPress(uint8_t key_pin, uint8_t key_code){
+    Serial.write(key_code);
+    Serial.println(" pressed");
+    
+    digitalWrite(LED, LOW);
+
+    char msg[PAYLOAD_SIZE];
+    memcpy(msg, secret, sizeof(secret)); 
+    msg[30] = key_code;
+
+    radio.write(msg, sizeof(msg)); 
+    while(!digitalRead(key_pin)){
+        radio.write(msg, sizeof(msg)); 
+        delay(TRANSMIT_DELAY);
+    }
+
+    digitalWrite(LED, HIGH);
 }
 
 void initializePins(){
@@ -117,6 +113,7 @@ void unlock(){
 }
 
 void sensitivity(){
+    Serial.println("Sensitivity");
     SENSITIVITY_FLAG = true;
 }
 
