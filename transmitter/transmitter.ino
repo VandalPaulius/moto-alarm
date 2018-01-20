@@ -26,7 +26,7 @@ volatile bool SENSITIVITY_FLAG = false;
 volatile bool SOUND_FLAG = false;
 
 //Constants
-const char secret[30] = "77da4ba6-fdf2-11e7-8be5-0ed5ff";
+const char secret[30] = "77da4ba6-fdf2-11e7-8be5-0ed5f";
 const uint64_t pipe = 0xE8E8F0F0E1LL;
 const uint8_t lock_code = '0';
 const uint8_t unlock_code = '1';
@@ -82,8 +82,8 @@ void processKeyPress(uint8_t key_pin, uint8_t key_code){
 
     radio.write(msg, sizeof(msg)); 
     while(!digitalRead(key_pin)){
-        radio.write(msg, sizeof(msg)); 
         delay(TRANSMIT_DELAY);
+        radio.write(msg, sizeof(msg)); 
     }
 
     digitalWrite(LED, HIGH);
@@ -98,25 +98,29 @@ void initializePins(){
 }
 
 void attachInterrupts(){
-    attachInterrupt(digitalPinToInterrupt(LOCK), lock, FALLING);
-    attachInterrupt(digitalPinToInterrupt(UNLOCK), unlock, FALLING);
-    attachInterrupt(digitalPinToInterrupt(SENSITIVITY), sensitivity, FALLING);
-    attachInterrupt(digitalPinToInterrupt(SOUND), sound, FALLING);
+    pciSetup(LOCK);
+    pciSetup(UNLOCK);
+    pciSetup(SENSITIVITY);
+    pciSetup(SOUND);
 }
 
-void lock(){
-    LOCK_FLAG = true;
+void pciSetup(byte pin){
+    *digitalPinToPCMSK(pin) |= bit (digitalPinToPCMSKbit(pin));  // enable pin
+    PCIFR  |= bit (digitalPinToPCICRbit(pin)); // clear any outstanding interrupt
+    PCICR  |= bit (digitalPinToPCICRbit(pin)); // enable interrupt for the group
 }
 
-void unlock(){
-    UNLOCK_FLAG = true;
-}
-
-void sensitivity(){
-    Serial.println("Sensitivity");
-    SENSITIVITY_FLAG = true;
-}
-
-void sound(){
-    SOUND_FLAG = true;
-}
+ISR (PCINT2_vect) {// handle pin change interrupt for D0 to D7 here
+    if(!digitalRead(LOCK)){
+        LOCK_FLAG = true;
+    }     
+    else if(!digitalRead(UNLOCK)){
+        UNLOCK_FLAG = true;
+    }
+    else if(!digitalRead(SENSITIVITY)){
+        SENSITIVITY_FLAG = true;
+    }
+    else if(!digitalRead(SOUND)){
+        SOUND_FLAG = true;
+    }
+}  
