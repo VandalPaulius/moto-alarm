@@ -5,12 +5,12 @@
 #include "RF24.h"
 
 // Push buttons
-#define LOCK        2
-#define UNLOCK      3
-#define SENSITIVITY A6 // 4
-#define SOUND       A7 // 5
+#define LOCK        4
+#define UNLOCK      5
+#define SENSITIVITY 6
+#define SOUND       7
 
-#define LED         6
+#define LED         8
 
 //NRF24l01
 #define CE          9  //Toggle between transmit (TX), receive (RX), standby, and power-down mode
