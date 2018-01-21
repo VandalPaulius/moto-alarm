@@ -1,5 +1,5 @@
 // moto-alarm Reciever
-//Used example from http://forum.arduino.cc/index.php?topic=421081
+// Used example from http://forum.arduino.cc/index.php?topic=421081
 
 #include  <SPI.h>
 #include "nRF24L01.h"
@@ -16,9 +16,9 @@
 
 #define LED         8
 
-//NRF24l01
-#define CE          9  //Toggle between transmit (TX), receive (RX), standby, and power-down mode
-#define CSN         10 //SPI chip select 
+// NRF24l01
+#define CE          9  // Toggle between transmit (TX), receive (RX), standby, and power-down mode
+#define CSN         10 // SPI chip select 
 
 #define TRANSMIT_DELAY 140
 #define PAYLOAD_SIZE   31
@@ -29,7 +29,7 @@ volatile bool UNLOCK_FLAG = false;
 volatile bool SENSITIVITY_FLAG = false;
 volatile bool SOUND_FLAG = false;
 
-//Constants
+// Constants
 const char secret[30] = "77da4ba6-fdf2-11e7-8be5-0ed5ff";
 const uint64_t pipe = 0xE8E8F0F0E1LL;
 const uint8_t lock_code = '0';
@@ -45,12 +45,19 @@ void setup(void) {
         printf_begin();
     #endif
 
+    disableNotNeeded();
+
     initializePins();
     initializeRadio();
     attachInterrupts();
 }
     
 void loop(void) {
+    radio.powerDown();
+    goToSleep();
+    radio.powerUp(); // go to normal radio operation mode (takes ~5ms)
+    delay(5);
+
     if(LOCK_FLAG){
         processKeyPress(LOCK, lock_code); 
         LOCK_FLAG = false;
@@ -70,8 +77,6 @@ void loop(void) {
         processKeyPress(SOUND, sound_code);
         SOUND_FLAG = false;
     }
-
-    delay(10);
 }
 
 void initializePins(){
@@ -98,6 +103,32 @@ void attachInterrupts(){
     pciSetup(UNLOCK);
     pciSetup(SENSITIVITY);
     pciSetup(SOUND);
+}
+
+void disableNotNeeded(){
+    // Disable ADC
+    ADCSRA &= ~(1 << 7);
+    PRR |= (1 << 7) | // Disable TWI
+        (1 << 6) | // Disable Timer2
+        (1 << 3) | // Disable Timer1
+        (1 << 1) | // Disable UART
+        1; // Disable ADC
+
+    // Enable pull-ups on all port inputs
+    PORTB = 0xff;
+    PORTC = 0xff;
+    PORTD = 0xff;
+}
+
+void goToSleep(){
+    SMCR |= (1 << 2); // power down mode
+    SMCR |= 1; // enable sleep
+
+    // BOD DISABLE
+    MCUCR |= (3 << 5); // set both BODS and BODSE at the same time
+    MCUCR = (MCUCR & ~(1 << 5)) | (1 << 6); // then set the BODS bit and clear the BODSE bit at the same time
+
+    __asm__ __volatile__("sleep");
 }
 
 void processKeyPress(uint8_t key_pin, uint8_t key_code){
@@ -139,7 +170,7 @@ void pciSetup(byte pin){
     PCICR  |= bit (digitalPinToPCICRbit(pin)); // enable interrupt for the group
 }
 
-ISR (PCINT2_vect) {// handle pin change interrupt for D0 to D7 here
+ISR (PCINT2_vect) { // handle pin change interrupt for D0 to D7 here
     if(!digitalRead(LOCK)){
         LOCK_FLAG = true;
     }     
@@ -153,4 +184,3 @@ ISR (PCINT2_vect) {// handle pin change interrupt for D0 to D7 here
         SOUND_FLAG = true;
     }
 }  
-
