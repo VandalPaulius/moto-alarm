@@ -45,40 +45,37 @@ void setup(void) {
         printf_begin();
     #endif
 
+    disableNotNeeded();
+
     initializePins();
     initializeRadio();
     attachInterrupts();
 }
     
 void loop(void) {
-    bool usedRadio = false;
+    radio.powerDown();
+    goToSleep();
+    radio.powerUp(); // go to normal radio operation mode (takes ~5ms)
+    delay(5);
 
     if(LOCK_FLAG){
         processKeyPress(LOCK, lock_code); 
         LOCK_FLAG = false;
-        usedRadio = true;
     }
 
     if(UNLOCK_FLAG){
         processKeyPress(UNLOCK, unlock_code);
         UNLOCK_FLAG = false;
-        usedRadio = true;
     }
 
     if(SENSITIVITY_FLAG){
         processKeyPress(SENSITIVITY, sensitivity_code);
         SENSITIVITY_FLAG = false;
-        usedRadio = true;
     }
 
     if(SOUND_FLAG){
         processKeyPress(SOUND, sound_code);
         SOUND_FLAG = false;
-        usedRadio = true;
-    }
-
-    if(usedRadio){
-        radio.powerDown();
     }
 }
 
@@ -106,6 +103,22 @@ void attachInterrupts(){
     pciSetup(UNLOCK);
     pciSetup(SENSITIVITY);
     pciSetup(SOUND);
+}
+
+void disableNotNeeded(){
+    // Disable ADC
+    ADCSRA &= ~(1 << 7);
+
+    // Enable pull-ups on all port inputs
+    PORTB = 0xff;
+    PORTC = 0xff;
+    PORTD = 0xff;
+}
+
+void goToSleep(){
+    SMCR |= (1 << 2); // power down mode
+    SMCR |= 1; // enable sleep
+    __asm__ __volatile__("sleep");
 }
 
 void processKeyPress(uint8_t key_pin, uint8_t key_code){
@@ -148,8 +161,6 @@ void pciSetup(byte pin){
 }
 
 ISR (PCINT2_vect) { // handle pin change interrupt for D0 to D7 here
-    radio.powerUp(); // go to normal radio operation mode (takes ~5ms)
-
     if(!digitalRead(LOCK)){
         LOCK_FLAG = true;
     }     
