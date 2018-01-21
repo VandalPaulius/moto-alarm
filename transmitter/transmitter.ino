@@ -6,7 +6,7 @@
 #include "RF24.h"
 #include "printf.h"
 
-//#define DEBUG
+#define DEBUG
 
 // Push buttons
 #define LOCK        4
