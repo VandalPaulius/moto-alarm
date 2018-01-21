@@ -6,7 +6,7 @@
 #include "RF24.h"
 #include "printf.h"
 
-#define DEBUG
+//#define DEBUG
 
 // Push buttons
 #define LOCK        4
@@ -108,6 +108,11 @@ void attachInterrupts(){
 void disableNotNeeded(){
     // Disable ADC
     ADCSRA &= ~(1 << 7);
+    PRR |= (1 << 7) | // Disable TWI
+        (1 << 6) | // Disable Timer2
+        (1 << 3) | // Disable Timer1
+        (1 << 1) | // Disable UART
+        1; // Disable ADC
 
     // Enable pull-ups on all port inputs
     PORTB = 0xff;
@@ -118,6 +123,11 @@ void disableNotNeeded(){
 void goToSleep(){
     SMCR |= (1 << 2); // power down mode
     SMCR |= 1; // enable sleep
+
+    // BOD DISABLE
+    MCUCR |= (3 << 5); // set both BODS and BODSE at the same time
+    MCUCR = (MCUCR & ~(1 << 5)) | (1 << 6); // then set the BODS bit and clear the BODSE bit at the same time
+
     __asm__ __volatile__("sleep");
 }
 
